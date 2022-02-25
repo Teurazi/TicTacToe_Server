@@ -15,17 +15,17 @@ unsigned WINAPI t_func(void* data);//클라이언트 처리 스레드 함수
 void SendMsg(char* msg, int len);//메시지 보내는 함수
 void SendInit(char* msg, int len);//초기화 메세지 보내는 함수
 
-int clientCount = 0;
-int drawCount = 0;
+int clientCount = 0;	//현제 입장한 클라이언트 수
+int drawCount = 0;	//무승부인지 아닌지 확인하는 카운트
 SOCKET clientSocks[MAX_CLNT];//클라이언트 소켓 보관용 배열
 HANDLE hMutex;//뮤텍스
 
 int map[3][3] = { 0, }; // [가로][세로]
 
 struct Packet {
-    int setOrder;
-    int setToken;
-    int setResult;
+    int setOrder;	//현제 보내는 데이터의 타입설정
+    int setToken;	//차례보내기
+    int setResult;	//결과보내기
     int _x;
     int _y;
 };
@@ -33,19 +33,16 @@ struct Packet {
 void SendMsg(char* msg, int len) { //메시지를 모든 클라이언트에게 보낸다.
     int i;
     WaitForSingleObject(hMutex, INFINITE);//뮤텍스 실행
-    for (i = 0; i < clientCount; i++)//클라이언트 개수만큼
-        send(clientSocks[i], msg, len, 0);//클라이언트들에게 메시지를 전달한다.
+    for (i = 0; i < clientCount; i++)
+        send(clientSocks[i], msg, len, 0);
     ReleaseMutex(hMutex);//뮤텍스 중지
 }
 
-void SendInit(char* msg, int len, int num) { //메시지를 모든 클라이언트에게 보낸다.
-	WaitForSingleObject(hMutex, INFINITE);//뮤텍스 실행
-		send(clientSocks[num], msg, len, 0);//클라이언트들에게 메시지를 전달한다.
-	ReleaseMutex(hMutex);//뮤텍스 중지
+void SendInit(char* msg, int len, int num) { //num에있는 소켓과 연결된 클라이언트에 메세지를 전달한다
+		send(clientSocks[num], msg, len, 0);
 }
-//중간에 사람이 나가거나 했을경우 초기화해야함
-//나간경우 다른 클라이언트한테도 연결이 종료되었다고 알려야됨
-void InitGame() {
+
+void InitGame() {	//틱택톡 판을 0으로 초기화하기
 	for (int i = 0; i < 3; i++)
 	{
 		for (int j = 0; j < 3; j++)
@@ -60,8 +57,8 @@ unsigned WINAPI t_func(void* data) {	//받은 메세지 처리
 	int strLen;
 	struct sockaddr_in sock_addr;
 	char szReceiveBuffer[MAX_PACKETLEN];
-	Packet tempPacket;
-	Packet* packet;
+	Packet tempPacket;	//임시 패킷
+	Packet* packet;	//데이터를 받을 패킷
 	packet = new Packet();
 
 	while ((strLen = recv(sockfd, szReceiveBuffer, sizeof(szReceiveBuffer) - 1, 0)) != 0) { //클라이언트로부터 메시지를 받을때까지 기다린다.
@@ -71,27 +68,32 @@ unsigned WINAPI t_func(void* data) {	//받은 메세지 처리
 		szReceiveBuffer[strLen] = '\0';
 		packet = (Packet*)szReceiveBuffer;
 
+		//임시패킷에 데이터 입력하기
 		tempPacket.setOrder = packet->setOrder;
 		tempPacket.setResult = packet->setResult;
 		tempPacket.setToken = packet->setToken;
 		tempPacket._x = packet->_x;
 		tempPacket._y = packet->_y;
 
+		//유저가 찍은 좌표에 아무것도 없을 경우
 		if (map[tempPacket._x][tempPacket._y] == 0) {
-			map[tempPacket._x][tempPacket._y] = tempPacket.setToken;
+			map[tempPacket._x][tempPacket._y] = tempPacket.setToken;	//해당 좌표에 유저의 순서를 입력한다
 
-			tempPacket.setOrder = 0;
-			tempPacket.setResult = tempPacket.setToken;
-			if (tempPacket.setToken == 1) {
+			tempPacket.setOrder = 0;	//현제 게임이 진행중이라는 뜻인 0을 보낸다
+			tempPacket.setResult = tempPacket.setToken;	//결과에 현제 차례인 유저의 번호를 저장한다
+
+			if (tempPacket.setToken == 1) {	//현제 1의 차례일경우 2로 변경
 				tempPacket.setToken = 2;
 			}
-			else if (tempPacket.setToken == 2) {
+			else if (tempPacket.setToken == 2) {	//현제 2의 차례일경우 1로 변경
 				tempPacket.setToken = 1;
 			}
-			SendMsg((char*)&tempPacket, sizeof(Packet));//SendMsg에 받은 메시지를 전달한다.]
+			SendMsg((char*)&tempPacket, sizeof(Packet));
+			//해당 메세지를 보내게될경우 클라이언트에서는 setOrder가 0이라서 게임진행중이라고 인식하며 
+			//받아온 위치에 결과로보낸 유저번호의 문양이 표시된다
 
-			Packet _tempPack;
-			_tempPack.setOrder = 3;
+			Packet _tempPack;	//기존의 tempPacket 을 이용하면 예상치못한 값을 보낼수있으므로 새로운 변수를 이용한다
+			_tempPack.setOrder = 3;	//setOrder은 게임종료를 의미한다
 			
 			for (int i = 0; i < 3; i++)	//틱텍톡 가로세로 검사
 			{
@@ -106,6 +108,7 @@ unsigned WINAPI t_func(void* data) {	//받은 메세지 처리
 					InitGame();
 				}
 			}
+			//틱텍톡 대각선 검사
 			if (((map[0][0] == map[1][1]) && (map[0][0] == map[2][2])) && (map[0][0] != 0 && map[1][1] != 0 && map[2][2] != 0)) {
 				_tempPack.setToken = map[0][0];
 				SendMsg((char*)&_tempPack, sizeof(Packet));//SendMsg에 받은 메시지를 전달한다.
@@ -116,7 +119,9 @@ unsigned WINAPI t_func(void* data) {	//받은 메세지 처리
 				SendMsg((char*)&_tempPack, sizeof(Packet));//SendMsg에 받은 메시지를 전달한다.
 				InitGame();
 			}
+			//무승부카운트 초기화
 			drawCount = 0;
+			//무승부 검사
 			for (int i = 0; i < 3; i++)
 			{
 				for (int j = 0; j < 3; j++)
@@ -129,8 +134,8 @@ unsigned WINAPI t_func(void* data) {	//받은 메세지 처리
 					}
 				}
 			}
-			if (drawCount == 9) {
-				_tempPack.setToken = 3;
+			if (drawCount == 9) {	//무승부카운트가 9 즉 게임판이 가득 찼을때
+				_tempPack.setToken = 3;	//set Order가 3일때 SetToken 3은 무승부를 의미한다
 				SendMsg((char*)&_tempPack, sizeof(Packet));//SendMsg에 받은 메시지를 전달한다.
 				InitGame();
 			}
@@ -144,7 +149,7 @@ unsigned WINAPI t_func(void* data) {	//받은 메세지 처리
 			for (int j = i; j < MAX_CLNT; j++)
 			{
 				if (j == MAX_CLNT - 1) {
-					clientSocks[i] = 0;
+					clientSocks[i] = 0;	//배열의 마지막에있는 소켓은 0으로 초기화한다
 				}
 				else {
 					clientSocks[i] = clientSocks[i + 1];//앞으로 땡긴다.
@@ -214,7 +219,7 @@ int main()
 
 		if (clientCount == MAX_CLNT) {
 			Packet tempPacket;
-			tempPacket.setOrder = 1;
+			tempPacket.setOrder = 1;	//setOrder 1은 초기화를 뜻한다
 			tempPacket.setToken = 1;
 			SendInit((char*)&tempPacket, sizeof(Packet), 0);//SendMsg에 받은 메시지를 전달한다.
 			tempPacket.setOrder = 2;
