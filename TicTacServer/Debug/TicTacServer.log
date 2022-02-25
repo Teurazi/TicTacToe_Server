@@ -1,0 +1,4 @@
+﻿  TicTacServer.cpp
+C:\Users\user\Desktop\서버,프로그래밍코딩\멀티스레드\멀티스레드\TicTacServer\TicTacServer\TicTacServer.cpp(61,21): warning C4101: 'sock_addr' :참조되지 않은 지역 변수입니다.
+C:\Users\user\Desktop\서버,프로그래밍코딩\멀티스레드\멀티스레드\TicTacServer\TicTacServer\TicTacServer.cpp(208,41): warning C4996: 'inet_ntoa': Use inet_ntop() or InetNtop() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+  TicTacServer.vcxproj -> C:\Users\user\Desktop\서버,프로그래밍코딩\멀티스레드\멀티스레드\TicTacServer\Debug\TicTacServer.exe
